@@ -17,8 +17,6 @@ import (
 	"time"
 )
 
-type NodeRank struct{}
-
 type Response struct {
 	Blocks   string `json:"blocks"`
 	Duration int    `json:"duration"`
@@ -44,7 +42,7 @@ var (
 	file = flag.String("file", "config.yaml", "IOTA CONFIGURATION")
 )
 
-func (cli *NodeRank) AddAttestationInfo(info []string) {
+func AddAttestationInfo(info []string) {
 	raw := new(teectx)
 	raw.Attester = info[0]
 	raw.Attestee = info[1]
@@ -72,7 +70,7 @@ func (cli *NodeRank) AddAttestationInfo(info []string) {
 	fmt.Println(r)
 }
 
-func (cli *NodeRank) GetRank(period string, numRank int64) []teectx {
+func GetRank(period string, numRank int64) []teectx {
 	data := "{\"command\":\"getBlocksInPeriodStatement\",\"period\":" + period + "}"
 	r := doPost([]byte(data))
 	var result Response
@@ -120,7 +118,7 @@ func (cli *NodeRank) GetRank(period string, numRank int64) []teectx {
 	return rst[0:numRank]
 }
 
-func (cli *NodeRank) PrintHCGraph(period string) {
+func PrintHCGraph(period string) {
 	data := "{\"command\":\"getBlocksInPeriodStatement\",\"period\":" + period + "}"
 	r := doPost([]byte(data))
 	var result Response
