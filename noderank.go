@@ -11,14 +11,13 @@ import (
 	"log"
 	"net/http"
 	url2 "net/url"
-	"os"
 	"pagerank"
 	"sort"
 	"strconv"
 	"time"
 )
 
-type CLI struct{}
+type NodeRank struct{}
 
 type Response struct {
 	Blocks   string `json:"blocks"`
@@ -45,23 +44,7 @@ var (
 	file = flag.String("file", "config.yaml", "IOTA CONFIGURATION")
 )
 
-func printUsage() {
-
-	fmt.Println("Usage:")
-	fmt.Println("\taddattestationinfo -info <detail> -- add attestation information.")
-	fmt.Println("\tgetrank -num <NUMBER> -period <WHICH_PERIOD> -- get TEE rank of a specific period.")
-	fmt.Println("\tprinthcgraph -period <WHICH_PEIOD> -- output HCGraph information.")
-
-}
-
-func isValidArgs() {
-	if len(os.Args) < 2 {
-		printUsage()
-		os.Exit(1)
-	}
-}
-
-func (cli *CLI) addAttestationInfo(info []string) {
+func (cli *NodeRank) AddAttestationInfo(info []string) {
 	raw := new(teectx)
 	raw.Attester = info[0]
 	raw.Attestee = info[1]
@@ -89,7 +72,7 @@ func (cli *CLI) addAttestationInfo(info []string) {
 	fmt.Println(r)
 }
 
-func (cli *CLI) getRank(period string, numRank int64) []teectx {
+func (cli *NodeRank) GetRank(period string, numRank int64) []teectx {
 	data := "{\"command\":\"getBlocksInPeriodStatement\",\"period\":" + period + "}"
 	r := doPost([]byte(data))
 	var result Response
@@ -137,7 +120,7 @@ func (cli *CLI) getRank(period string, numRank int64) []teectx {
 	return rst[0:numRank]
 }
 
-func (cli *CLI) printHCGraph(period string) {
+func (cli *NodeRank) PrintHCGraph(period string) {
 	data := "{\"command\":\"getBlocksInPeriodStatement\",\"period\":" + period + "}"
 	r := doPost([]byte(data))
 	var result Response
