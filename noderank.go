@@ -39,7 +39,7 @@ var url = "http://localhost:14700"
 var addr = "JVSVAFSXWHUIZPFDLORNDMASGNXWFGZFMXGLCJQGFWFEZWWOA9KYSPHCLZHFBCOHMNCCBAGNACPIGHVYX"
 
 var (
-	file = flag.String("file", "config.yaml", "IOTA CONFIGURATION")
+	file = flag.String("file", "noderank/config.yaml", "IOTA CONFIGURATION")
 )
 
 func AddAttestationInfo(info []string) {
