@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"github.com/awalterschulze/gographviz"
-	"github.com/kylelemons/go-gypsy/yaml"
 	"github.com/wunder3605/pagerank"
 	"io/ioutil"
 	"log"
@@ -42,23 +41,24 @@ var (
 	file = flag.String("file", "noderank/config.yaml", "IOTA CONFIGURATION")
 )
 
-func AddAttestationInfo(info []string) {
+func AddAttestationInfo(addr1 string, url string, info []string) error {
 	raw := new(teectx)
 	raw.Attester = info[0]
 	raw.Attestee = info[1]
 	num, err := strconv.ParseUint(info[2], 10, 64)
+	if err != nil {
+		return err
+	}
 	raw.Score = float64(num)
 	m := new(message)
 	m.TeeNum = 1
 	m.TeeContent = []teectx{*raw}
 	ms, err := json.Marshal(m)
 	if err != nil {
-		log.Panic(err)
+		return err
 	}
 
-	addr1 := getConfigParam("addr")
 	if addr1 == "" {
-		log.Fatal(err)
 		addr1 = addr
 	}
 
@@ -66,18 +66,24 @@ func AddAttestationInfo(info []string) {
 	ds := d.Format("20190227")
 	data := "{\"command\":\"storeMessage\",\"address\":" + addr1 + ",\"message\":" + url2.QueryEscape(string(ms[:])) + ",\"tag\":\"" + ds + "TEE\"}"
 	fmt.Println("data : " + data)
-	r := doPost([]byte(data))
+	r, err := doPost(url, []byte(data))
+	if err != nil {
+		return err
+	}
 	fmt.Println(r)
+	return nil
 }
 
-func GetRank(period string, numRank int64) []teectx {
+func GetRank(uri string, period string, numRank int64) ([]teectx, error) {
 	data := "{\"command\":\"getBlocksInPeriodStatement\",\"period\":" + period + "}"
-	r := doPost([]byte(data))
-	var result Response
-	err := json.Unmarshal(r, &result)
+	r, err := doPost(uri, []byte(data))
 	if err != nil {
-		log.Fatal(err)
-		fmt.Println(r)
+		return nil, err
+	}
+	var result Response
+	err = json.Unmarshal(r, &result)
+	if err != nil {
+		return nil, err
 	}
 	fmt.Println(result.Duration)
 	fmt.Println(result.Blocks)
@@ -85,7 +91,7 @@ func GetRank(period string, numRank int64) []teectx {
 	var msgArr []string
 	err = json.Unmarshal([]byte(result.Blocks), &msgArr)
 	if err != nil {
-		log.Panic(err)
+		return nil, err
 	}
 
 	graph := pagerank.NewGraph()
@@ -93,12 +99,12 @@ func GetRank(period string, numRank int64) []teectx {
 	for _, m2 := range msgArr {
 		msgT, err := url2.QueryUnescape(m2)
 		if err != nil {
-			log.Panicln(err)
+			return nil, err
 		}
 		var msg message
 		err = json.Unmarshal([]byte(msgT), &msg)
 		if err != nil {
-			log.Panic(err)
+			return nil, err
 		}
 
 		rArr := msg.TeeContent
@@ -115,16 +121,18 @@ func GetRank(period string, numRank int64) []teectx {
 	})
 	sort.Sort(rawtxnslice(rst))
 	fmt.Println(rst[0:numRank])
-	return rst[0:numRank]
+	return rst[0:numRank], nil
 }
 
-func PrintHCGraph(period string) {
+func PrintHCGraph(uri string, period string) error {
 	data := "{\"command\":\"getBlocksInPeriodStatement\",\"period\":" + period + "}"
-	r := doPost([]byte(data))
-	var result Response
-	err := json.Unmarshal(r, &result)
+	r, err := doPost(uri, []byte(data))
 	if err != nil {
-		log.Fatal(err)
+		return err
+	}
+	var result Response
+	err = json.Unmarshal(r, &result)
+	if err != nil {
 		fmt.Println(r)
 	}
 	fmt.Println(result.Duration)
@@ -164,17 +172,16 @@ func PrintHCGraph(period string) {
 
 	output := graph.String()
 	fmt.Println(output)
+	return nil
 }
 
-func doPost(d []byte) []byte {
-	uri := getConfigParam("url")
+func doPost(uri string, d []byte) ([]byte, error) {
 	if uri == "" {
 		uri = url
 	}
 	req, err := http.NewRequest("POST", uri, bytes.NewBuffer(d))
 	if err != nil {
-		// error
-		log.Panic(err)
+		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-IOTA-API-Version", "1")
@@ -182,27 +189,15 @@ func doPost(d []byte) []byte {
 	client := &http.Client{}
 	res, err := client.Do(req)
 	if err != nil {
-		log.Panic(err)
+		return nil, err
 	}
 
 	defer res.Body.Close()
 	r, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		log.Panic(err)
+		return nil, err
 	}
-	return r
-}
-
-func getConfigParam(p string) string {
-	config, err := yaml.ReadFile(*file)
-	if err != nil {
-		log.Panicln(err)
-	}
-	result, err := config.Get(p)
-	if err != nil {
-		log.Panicln(err)
-	}
-	return result
+	return r, nil
 }
 
 func (r rawtxnslice) Len() int {
