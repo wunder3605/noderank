@@ -74,8 +74,8 @@ func AddAttestationInfo(addr1 string, url string, info []string) error {
 	return nil
 }
 
-func GetRank(uri string, period string, numRank int64) ([]teectx, error) {
-	data := "{\"command\":\"getBlocksInPeriodStatement\",\"period\":" + period + "}"
+func GetRank(uri string, period int64, numRank int64) ([]teectx, error) {
+	data := "{\"command\":\"getBlocksInPeriodStatement\",\"period\":" + strconv.FormatInt(period, 10) + "}"
 	r, err := doPost(uri, []byte(data))
 	if err != nil {
 		return nil, err
@@ -120,7 +120,13 @@ func GetRank(uri string, period string, numRank int64) ([]teectx, error) {
 		rst = append(rst, tee)
 	})
 	sort.Sort(rawtxnslice(rst))
-	fmt.Println(rst[0:numRank])
+	if len(rst) < 1 {
+		fmt.Println("size of result is : " + string(len(rst)))
+		return nil, nil
+	}
+	if int64(len(rst)) < numRank {
+		return rst[0:numRank], nil
+	}
 	return rst[0:numRank], nil
 }
 
