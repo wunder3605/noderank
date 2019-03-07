@@ -125,7 +125,7 @@ func GetRank(uri string, period int64, numRank int64) ([]teectx, error) {
 		return nil, nil
 	}
 	if int64(len(rst)) < numRank {
-		return rst[0:numRank], nil
+		return rst[0:int64(len(rst))], nil
 	}
 	return rst[0:numRank], nil
 }
