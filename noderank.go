@@ -32,7 +32,12 @@ type teectx struct {
 	Score    float64 `json:"score"`
 }
 
-type rawtxnslice []teectx
+type teescore struct {
+	Attestee string  `json:"attestee"`
+	Score    float64 `json:"score"`
+}
+
+type teescoreslice []teescore
 
 var url = "http://localhost:14700"
 var addr = "JVSVAFSXWHUIZPFDLORNDMASGNXWFGZFMXGLCJQGFWFEZWWOA9KYSPHCLZHFBCOHMNCCBAGNACPIGHVYX"
@@ -65,69 +70,80 @@ func AddAttestationInfo(addr1 string, url string, info []string) error {
 	d := time.Now()
 	ds := d.Format("20190227")
 	data := "{\"command\":\"storeMessage\",\"address\":" + addr1 + ",\"message\":" + url2.QueryEscape(string(ms[:])) + ",\"tag\":\"" + ds + "TEE\"}"
-	fmt.Println("data : " + data)
-	r, err := doPost(url, []byte(data))
+	_, err = doPost(url, []byte(data))
 	if err != nil {
 		return err
 	}
-	fmt.Println(r)
 	return nil
 }
 
-func GetRank(uri string, period int64, numRank int64) ([]teectx, error) {
+func GetRank(uri string, period int64, numRank int64) ([]teescore, []teectx, error) {
 	data := "{\"command\":\"getBlocksInPeriodStatement\",\"period\":" + strconv.FormatInt(period, 10) + "}"
 	r, err := doPost(uri, []byte(data))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var result Response
 	err = json.Unmarshal(r, &result)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	fmt.Println(result.Duration)
-	fmt.Println(result.Blocks)
 
 	var msgArr []string
 	err = json.Unmarshal([]byte(result.Blocks), &msgArr)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	graph := pagerank.NewGraph()
 
+	cm := make(map[string]teectx)
+
 	for _, m2 := range msgArr {
 		msgT, err := url2.QueryUnescape(m2)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		var msg message
 		err = json.Unmarshal([]byte(msgT), &msg)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		rArr := msg.TeeContent
+
 		for _, r := range rArr {
 			graph.Link(r.Attester, r.Attestee, r.Score)
+			cm[r.Attestee] = teectx{r.Attester, r.Attestee, r.Score}
 		}
 	}
 
-	var rst []teectx
+	var rst []teescore
+	var teectxslice []teectx
+
 	graph.Rank(0.85, 0.0001, func(attestee string, score float64) {
-		fmt.Println("attestee ", attestee, " has a score of", score)
-		tee := teectx{"", attestee, score}
+		tee := teescore{attestee, score}
 		rst = append(rst, tee)
+
+		tc := cm[attestee]
+		teectxslice = append(teectxslice, tc)
 	})
-	sort.Sort(rawtxnslice(rst))
+	sort.Sort(teescoreslice(rst))
 	if len(rst) < 1 {
-		fmt.Println("size of result is : " + string(len(rst)))
-		return nil, nil
+		return nil, nil, nil
 	}
-	if int64(len(rst)) < numRank {
-		return rst[0:int64(len(rst))], nil
+
+	endIdx := int64(len(rst))
+	if endIdx > numRank {
+		endIdx = numRank
 	}
-	return rst[0:numRank], nil
+
+	rst = rst[0:numRank]
+	for _, r := range rst {
+		teectxslice = append(teectxslice, cm[r.Attestee])
+	}
+
+	return rst, teectxslice, nil
 }
 
 func PrintHCGraph(uri string, period string) error {
@@ -206,14 +222,14 @@ func doPost(uri string, d []byte) ([]byte, error) {
 	return r, nil
 }
 
-func (r rawtxnslice) Len() int {
+func (r teescoreslice) Len() int {
 	return len(r)
 }
 
-func (r rawtxnslice) Swap(i, j int) {
+func (r teescoreslice) Swap(i, j int) {
 	r[i], r[j] = r[j], r[i]
 }
 
-func (r rawtxnslice) Less(i, j int) bool {
+func (r teescoreslice) Less(i, j int) bool {
 	return r[j].Score < r[i].Score
 }
