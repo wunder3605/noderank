@@ -124,9 +124,6 @@ func GetRank(uri string, period int64, numRank int64) ([]teescore, []teectx, err
 	graph.Rank(0.85, 0.0001, func(attestee string, score float64) {
 		tee := teescore{attestee, score}
 		rst = append(rst, tee)
-
-		tc := cm[attestee]
-		teectxslice = append(teectxslice, tc)
 	})
 	sort.Sort(teescoreslice(rst))
 	if len(rst) < 1 {
