@@ -135,7 +135,7 @@ func GetRank(uri string, period int64, numRank int64) ([]teescore, []teectx, err
 		endIdx = numRank
 	}
 
-	rst = rst[0:numRank]
+	rst = rst[0:endIdx]
 	for _, r := range rst {
 		teectxslice = append(teectxslice, cm[r.Attestee])
 	}
